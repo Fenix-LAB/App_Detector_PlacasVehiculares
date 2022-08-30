@@ -1,0 +1,7 @@
+Colores:
+AZUL
+QFrame{
+background-color: rgb(84,111,236);
+}
+Azul fuerte
+background-color: rgb(39,74,233);
