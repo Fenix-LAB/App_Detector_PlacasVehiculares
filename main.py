@@ -6,8 +6,12 @@ import pyqtgraph as pg
 import numpy as np
 import cv2
 import imutils
+import pytesseract
 
-face_cascade = cv2.CascadeClassifier('models/haarcascade_plate_number.xml')
+#Se importa el algoritmo de clasificadores en cascada
+plate_cascade = cv2.CascadeClassifier('models/haarcascade_plate_number.xml')
+#Se localiza la ubicacion de Tesseract
+pytesseract.tesseract_cmd = r'D:\Aplicaciones\Tesseract_OCR\tesseract.exe'
 
 class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self, *args, **kwargs):
@@ -44,6 +48,7 @@ class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
         self.frame_superior.mouseMoveEvent = self.mover_ventana
 
         self.start_video()
+        #self.start_setPlate()
 
     def mover_menu(self):
         if True:
@@ -107,24 +112,43 @@ class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
     def Imageupd_slot(self, Image):
         self.label_video.setPixmap(QPixmap.fromImage(Image))
 
+    def start_setPlate(self):
+        self.Det = Detection()
+        self.Det.start()
+        self.Det.txtupd.connect(self.setPlate)
 
+    def setPlate(self, Plate):
+        self.label_text_placa.setText(str(Plate))
+
+#Se crea una clase que se hereda del modula QThread para usar el multihilo de la PC y obtener un video fluido
 class Work(QThread):
     Imageupd = pyqtSignal(QImage)
 
     def run(self):
         self.hilo_corriendo = True
-        self.cap = cv2.VideoCapture(0)
+        cap = cv2.VideoCapture(0)
         while self.hilo_corriendo:
-            ret, frame = self.cap.read()
+            ret, frame = cap.read()
             if ret:
+                #Se aplica un filtro en escala de grises para aplicar el algoritmo de deteccion de placas
                 Image = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                faces = face_cascade.detectMultiScale(Image, 1.1, 4)
-                for (x, y, w, h) in faces:
+                #Se aplica el algoritmo de deteccion a la imagen
+                plates = plate_cascade.detectMultiScale(Image, 1.1, 4)
+                #Se crea un rectangulo en el lugar donde se detecto la placa
+                for (x, y, w, h) in plates:
                     cv2.rectangle(frame, (x, y), (x + w, y + h), (236,111,84), 2)
+                    #Se obtiene el recuadro donde se ubica la placa
+                    self.imagePlate = frame[y + 10: y + h + 10, x + 20:x + w - 15]
+                    #platecar = pytesseract.image_to_string(imagePlate)
+                    #new_string = ''.join(filter(str.isalnum, platecar))
 
+                #Se cambia el formato de BGR a RGB
                 Image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                #Se aplica un giro a la imagen para que se visualice mejor
                 flip = cv2.flip(Image, 1)
+                #Reescalado de la imagen
                 frameu = imutils.resize(flip, width=640, height=480)
+                #Se cambia el formato a la imagen para poder usarlo dentro de la interfaz de PyQt5
                 pic = QImage(frameu.data, frameu.shape[1], frameu.shape[0], QImage.Format_RGB888)
                 #pic = convertir_QT.scaled(320, 240, Qt.KeepAspectRatio)
                 self.Imageupd.emit(pic)
@@ -132,6 +156,14 @@ class Work(QThread):
     def stop(self):
         self.hilo_corriendo = False
         self.quit()
+
+class Detection(QThread):
+    txtupd = pyqtSignal()
+    def plateDetection(self):
+        iamgeOfPlate = self.plate.imagePlate
+        platecar = pytesseract.image_to_string(iamgeOfPlate)
+        new_string = ''.join(filter(str.isalnum, platecar))
+        self.txtupd.emit(new_string)
 
 
 if __name__ == "__main__":
