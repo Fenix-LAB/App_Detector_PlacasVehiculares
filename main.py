@@ -10,7 +10,7 @@ import pytesseract
 
 #Se importa el algoritmo de clasificadores en cascada
 plate_cascade = cv2.CascadeClassifier('models/haarcascade_plate_number.xml')
-#Se localiza la ubicacion de Tesseract
+# Se localiza la ubicacion de Tesseract
 pytesseract.tesseract_cmd = r'D:\Aplicaciones\Tesseract_OCR\tesseract.exe'
 
 class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
@@ -48,7 +48,8 @@ class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
         self.frame_superior.mouseMoveEvent = self.mover_ventana
 
         self.start_video()
-        #self.start_setPlate()
+        self.start_setPlate()
+
 
     def mover_menu(self):
         if True:
@@ -123,7 +124,8 @@ class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
 #Se crea una clase que se hereda del modula QThread para usar el multihilo de la PC y obtener un video fluido
 class Work(QThread):
     Imageupd = pyqtSignal(QImage)
-
+    txtupd = pyqtSignal(str)
+    #det = Detection()
     def run(self):
         self.hilo_corriendo = True
         cap = cv2.VideoCapture(0)
@@ -139,7 +141,9 @@ class Work(QThread):
                     cv2.rectangle(frame, (x, y), (x + w, y + h), (236,111,84), 2)
                     #Se obtiene el recuadro donde se ubica la placa
                     self.imagePlate = frame[y + 10: y + h + 10, x + 20:x + w - 15]
-                    #platecar = pytesseract.image_to_string(imagePlate)
+                    #print("ya llegue")
+                    #imageOfPlate = self.placa.imagePlate
+                    #platecar = pytesseract.image_to_string(self.imagePlate)
                     #new_string = ''.join(filter(str.isalnum, platecar))
 
                 #Se cambia el formato de BGR a RGB
@@ -153,17 +157,22 @@ class Work(QThread):
                 #pic = convertir_QT.scaled(320, 240, Qt.KeepAspectRatio)
                 self.Imageupd.emit(pic)
 
+
     def stop(self):
         self.hilo_corriendo = False
         self.quit()
 
 class Detection(QThread):
-    txtupd = pyqtSignal()
+    txtupd = pyqtSignal(str)
+    placa = Work()
+    #txt = MyApp() Se buguea xd
     def plateDetection(self):
-        iamgeOfPlate = self.plate.imagePlate
-        platecar = pytesseract.image_to_string(iamgeOfPlate)
+        imageOfPlate = self.placa.imagePlate
+        platecar = pytesseract.image_to_string(imageOfPlate)
         new_string = ''.join(filter(str.isalnum, platecar))
+        print(new_string)
         self.txtupd.emit(new_string)
+        #self.txt.label_text_placa.setText(new_string)
 
 
 if __name__ == "__main__":
