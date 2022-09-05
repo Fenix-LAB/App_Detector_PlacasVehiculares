@@ -11,7 +11,7 @@ import pytesseract
 #Se importa el algoritmo de clasificadores en cascada
 plate_cascade = cv2.CascadeClassifier('models/haarcascade_plate_number.xml')
 # Se localiza la ubicacion de Tesseract
-pytesseract.tesseract_cmd = r'D:\Aplicaciones\Tesseract_OCR\tesseract.exe'
+pytesseract.pytesseract.tesseract_cmd = r'D:\Aplicaciones\Tesseract_OCR\\tesseract.exe'
 
 class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
     def __init__(self, *args, **kwargs):
@@ -48,8 +48,7 @@ class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
         self.frame_superior.mouseMoveEvent = self.mover_ventana
 
         self.start_video()
-        self.start_setPlate()
-
+        #self.start_setPlate()
 
     def mover_menu(self):
         if True:
@@ -65,7 +64,6 @@ class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
             self.animacion.setEndValue(extender)
             self.animacion.setEasingCurve(QtCore.QEasingCurve.InOutQuart)
             self.animacion.start()
-
 
     def control_btn_cerrar(self):
         self.close()
@@ -109,12 +107,13 @@ class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
         self.Work = Work()
         self.Work.start()
         self.Work.Imageupd.connect(self.Imageupd_slot)
+        self.Work.txtupd.connect(self.setPlate)
 
     def Imageupd_slot(self, Image):
         self.label_video.setPixmap(QPixmap.fromImage(Image))
 
     def start_setPlate(self):
-        self.Det = Detection()
+        self.Det = Work()
         self.Det.start()
         self.Det.txtupd.connect(self.setPlate)
 
@@ -125,7 +124,6 @@ class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
 class Work(QThread):
     Imageupd = pyqtSignal(QImage)
     txtupd = pyqtSignal(str)
-    #det = Detection()
     def run(self):
         self.hilo_corriendo = True
         cap = cv2.VideoCapture(0)
@@ -138,13 +136,19 @@ class Work(QThread):
                 plates = plate_cascade.detectMultiScale(Image, 1.1, 4)
                 #Se crea un rectangulo en el lugar donde se detecto la placa
                 for (x, y, w, h) in plates:
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), (236,111,84), 2)
+                    cv2.rectangle(frame, (x, y), (x + w, y + h), (236,111,84), 3)
                     #Se obtiene el recuadro donde se ubica la placa
-                    self.imagePlate = frame[y + 10: y + h + 10, x + 20:x + w - 15]
+                    imagePlate = frame[y + 10: y + h + 10, x + 20:x + w - 15]
                     #print("ya llegue")
                     #imageOfPlate = self.placa.imagePlate
                     #platecar = pytesseract.image_to_string(self.imagePlate)
                     #new_string = ''.join(filter(str.isalnum, platecar))
+                    #print("Ya llegue")
+                    imageOfPlate = imagePlate
+                    platecar = pytesseract.image_to_string(imageOfPlate)
+                    new_string = ''.join(filter(str.isalnum, platecar))
+                    #print(new_string)
+                    self.txtupd.emit(new_string)
 
                 #Se cambia el formato de BGR a RGB
                 Image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -157,21 +161,29 @@ class Work(QThread):
                 #pic = convertir_QT.scaled(320, 240, Qt.KeepAspectRatio)
                 self.Imageupd.emit(pic)
 
+    def plateDetection(self):
+        if self.imagePlate:
+            print("Ya llegue")
+            imageOfPlate = self.imagePlate
+            platecar = pytesseract.image_to_string(imageOfPlate)
+            new_string = ''.join(filter(str.isalnum, platecar))
+            print(new_string)
+            self.txtupd.emit(new_string)
 
     def stop(self):
         self.hilo_corriendo = False
         self.quit()
 
-class Detection(QThread):
-    txtupd = pyqtSignal(str)
-    placa = Work()
+#class Detection(QThread):
+    #txtupd = pyqtSignal(str)
+    #placa = Work()
     #txt = MyApp() Se buguea xd
-    def plateDetection(self):
-        imageOfPlate = self.placa.imagePlate
-        platecar = pytesseract.image_to_string(imageOfPlate)
-        new_string = ''.join(filter(str.isalnum, platecar))
-        print(new_string)
-        self.txtupd.emit(new_string)
+    #def plateDetection(self):
+        #imageOfPlate = self.placa.imagePlate
+        #platecar = pytesseract.image_to_string(imageOfPlate)
+        #new_string = ''.join(filter(str.isalnum, platecar))
+        #print(new_string)
+        #self.txtupd.emit(new_string)
         #self.txt.label_text_placa.setText(new_string)
 
 
