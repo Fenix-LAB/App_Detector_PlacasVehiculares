@@ -1,3 +1,4 @@
+import numpy
 from PyQt5.QtSerialPort import QSerialPort, QSerialPortInfo
 from PyQt5.QtCore import *
 from gui_design import *
@@ -49,6 +50,7 @@ class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
 
         self.start_video()
         #self.start_setPlate()
+        self.det = Detection()
 
     def mover_menu(self):
         if True:
@@ -107,23 +109,28 @@ class MyApp(QtWidgets.QMainWindow, Ui_MainWindow):
         self.Work = Work()
         self.Work.start()
         self.Work.Imageupd.connect(self.Imageupd_slot)
-        self.Work.txtupd.connect(self.setPlate)
+        self.Work.imageOfPlate.connect(self.setPlate)
 
     def Imageupd_slot(self, Image):
         self.label_video.setPixmap(QPixmap.fromImage(Image))
 
-    def start_setPlate(self):
-        self.Det = Work()
-        self.Det.start()
-        self.Det.txtupd.connect(self.setPlate)
+    #def start_setPlate(self):#No se usa por ahora
+        #self.Det = Work()
+        #self.Det.start()
+        #self.Det.txtupd.connect(self.setPlate)
 
     def setPlate(self, Plate):
-        self.label_text_placa.setText(str(Plate))
+        #self.det.start()
+        txt = str(self.det.plateDetection(Plate))
+        print(txt)
+        self.label_text_placa.setText(txt)
+        self.det.stop()
+
 
 #Se crea una clase que se hereda del modula QThread para usar el multihilo de la PC y obtener un video fluido
 class Work(QThread):
     Imageupd = pyqtSignal(QImage)
-    txtupd = pyqtSignal(str)
+    imageOfPlate = pyqtSignal(numpy.ndarray)
     def run(self):
         self.hilo_corriendo = True
         cap = cv2.VideoCapture(0)
@@ -139,17 +146,7 @@ class Work(QThread):
                     cv2.rectangle(frame, (x, y), (x + w, y + h), (236,111,84), 3)
                     #Se obtiene el recuadro donde se ubica la placa
                     imagePlate = frame[y + 10: y + h + 10, x + 20:x + w - 15]
-                    #print("ya llegue")
-                    #imageOfPlate = self.placa.imagePlate
-                    #platecar = pytesseract.image_to_string(self.imagePlate)
-                    #new_string = ''.join(filter(str.isalnum, platecar))
-                    #print("Ya llegue")
-                    imageOfPlate = imagePlate
-                    platecar = pytesseract.image_to_string(imageOfPlate)
-                    new_string = ''.join(filter(str.isalnum, platecar))
-                    #print(new_string)
-                    self.txtupd.emit(new_string)
-
+                    self.imageOfPlate.emit(imagePlate)
                 #Se cambia el formato de BGR a RGB
                 Image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 #Se aplica un giro a la imagen para que se visualice mejor
@@ -161,31 +158,23 @@ class Work(QThread):
                 #pic = convertir_QT.scaled(320, 240, Qt.KeepAspectRatio)
                 self.Imageupd.emit(pic)
 
-    def plateDetection(self):
-        if self.imagePlate:
-            print("Ya llegue")
-            imageOfPlate = self.imagePlate
-            platecar = pytesseract.image_to_string(imageOfPlate)
-            new_string = ''.join(filter(str.isalnum, platecar))
-            print(new_string)
-            self.txtupd.emit(new_string)
-
     def stop(self):
         self.hilo_corriendo = False
         self.quit()
 
-#class Detection(QThread):
+class Detection(QThread):
     #txtupd = pyqtSignal(str)
     #placa = Work()
-    #txt = MyApp() Se buguea xd
-    #def plateDetection(self):
-        #imageOfPlate = self.placa.imagePlate
-        #platecar = pytesseract.image_to_string(imageOfPlate)
-        #new_string = ''.join(filter(str.isalnum, platecar))
-        #print(new_string)
-        #self.txtupd.emit(new_string)
-        #self.txt.label_text_placa.setText(new_string)
+    def plateDetection(self, image):
+        self.run_thread = True
+        imageOfPlate = image
+        platecar = pytesseract.image_to_string(imageOfPlate)
+        new_string = ''.join(filter(str.isalnum, platecar))
+        return  new_string
 
+    def stop(self):
+        self.run_thread = False
+        self.quit()
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication([])
